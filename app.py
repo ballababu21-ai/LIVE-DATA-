@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import plotly.graph_objects as go
 from sklearn.neural_network import MLPClassifier
-from dhanhq import dhanhq
+from dhanhq import DhanContext, dhanhq
 
 # =====================================================================
 # 1. STREAMLIT CONFIG & MOBILE UI STYLING
@@ -45,26 +45,24 @@ def fetch_dhan_live_data(client_id, access_token):
     if not client_id or not access_token:
         return None, "API Credentials Missing"
     
-    # Strip whitespace spaces if any
     c_id = str(client_id).strip()
     a_token = str(access_token).strip()
     
     try:
-        # Dhan Official SDK Initialization Fix
-        dhan = dhanhq(c_id, a_token)
+        # DhanHQ v2 Correct Initialization
+        context = DhanContext(c_id, a_token)
+        dhan = dhanhq(context)
         
         # Verify Profile/Connection
         profile = dhan.get_profile()
         if isinstance(profile, dict) and (profile.get('status') == 'success' or profile.get('remarks') == '' or 'data' in profile):
             
-            # Fetch NIFTY 50 Index Market Quote (Security ID 13 / Exchange Segment IDX)
-            quote = dhan.get_market_feed_data(
-                securities={"NSE_IDX": [13]}
-            )
+            # Fetch Market Quote
+            quote = dhan.get_quote(security_id="13", exchange_segment="NSE_IDX")
             
             spot = 24500.0
             if isinstance(quote, dict) and quote.get('status') == 'success' and 'data' in quote:
-                spot_val = quote['data']['NSE_IDX']['13'].get('last_price', 24500.0)
+                spot_val = quote['data'].get('last_price', 24500.0)
                 spot = float(spot_val) if spot_val else 24500.0
             
             # Derived Metrics from Live Feed
