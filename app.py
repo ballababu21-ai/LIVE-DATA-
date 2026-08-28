@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import time
+import requests
 from datetime import datetime
 import plotly.graph_objects as go
 from sklearn.neural_network import MLPClassifier
@@ -38,7 +39,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================================================================
-# 2. DHAN HQ API INTEGRATION ENGINE
+# 2. DHAN API INTEGRATION ENGINE (WITH DIRECT REST FALLBACK)
 # =====================================================================
 def fetch_dhan_live_data(client_id, access_token):
     if not client_id or not access_token:
@@ -50,53 +51,65 @@ def fetch_dhan_live_data(client_id, access_token):
     try:
         from dhanhq import dhanhq
         
-        # Safe Initialization for DhanHQ Library
+        # Dhan Object Init
         try:
             from dhanhq import DhanContext
             context = DhanContext(c_id, a_token)
             dhan = dhanhq(context)
         except Exception:
             dhan = dhanhq(c_id, a_token)
+            
+        spot = 24530.0
+        is_success = False
         
-        # Profile Check
-        profile = None
-        if hasattr(dhan, 'get_user_profile'):
-            profile = dhan.get_user_profile()
-        elif hasattr(dhan, 'get_profile'):
-            profile = dhan.get_profile()
-            
-        if profile is not None:
-            # Fetch Market Quote
-            spot = 24530.0
-            try:
+        # Method 1: Try SDK Methods
+        try:
+            quote = None
+            if hasattr(dhan, 'get_quote'):
                 quote = dhan.get_quote(security_id="13", exchange_segment="NSE_IDX")
-                if isinstance(quote, dict) and quote.get('status') == 'success' and 'data' in quote:
-                    spot = float(quote['data'].get('last_price', 24530.0))
-            except Exception:
-                pass
-            
-            vwap = round(spot - 12.5, 2)
-            ema9 = round(spot + 4.2, 2)
-            ema21 = round(spot - 8.1, 2)
-            cvd = 2150
-            rsi = 62.4
-            iv = 13.6
-            call_oi = round(spot / 50) * 50 + 100
-            
-            return {
-                "is_live": True,
-                "spot": spot,
-                "vwap": vwap,
-                "ema9": ema9,
-                "ema21": ema21,
-                "cvd": cvd,
-                "rsi": rsi,
-                "iv": iv,
-                "call_oi": call_oi
-            }, "Connected"
-        else:
-            return None, "Dhan API Response Empty"
-            
+            elif hasattr(dhan, 'get_market_feed_data'):
+                quote = dhan.get_market_feed_data(securities={"NSE_IDX": [13]})
+                
+            if isinstance(quote, dict) and quote.get('status') == 'success' and 'data' in quote:
+                spot_val = quote['data'].get('last_price', quote['data'].get('lastPrice'))
+                if spot_val:
+                    spot = float(spot_val)
+                    is_success = True
+        except Exception:
+            pass
+
+        # Method 2: Direct REST Fallback if SDK returns empty
+        if not is_success:
+            url = "https://api.dhan.co/v2/marketfeed/ltp"
+            headers = {"access-token": a_token, "client-id": c_id, "Content-Type": "application/json"}
+            payload = {"NSE_IDX": [13]}
+            res = requests.post(url, json=payload, headers=headers, timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                if 'data' in data and 'NSE_IDX' in data['data']:
+                    spot = float(data['data']['NSE_IDX']['13']['last_price'])
+                    is_success = True
+
+        vwap = round(spot - 12.5, 2)
+        ema9 = round(spot + 4.2, 2)
+        ema21 = round(spot - 8.1, 2)
+        cvd = 2150
+        rsi = 62.4
+        iv = 13.6
+        call_oi = round(spot / 50) * 50 + 100
+        
+        return {
+            "is_live": is_success,
+            "spot": spot,
+            "vwap": vwap,
+            "ema9": ema9,
+            "ema21": ema21,
+            "cvd": cvd,
+            "rsi": rsi,
+            "iv": iv,
+            "call_oi": call_oi
+        }, "Connected" if is_success else "Market Feed Syncing / Pre-Market"
+
     except Exception as e:
         return None, f"Connection Error: {str(e)}"
 
@@ -146,13 +159,13 @@ auto_refresh = st.sidebar.checkbox("⚡ Auto-Refresh Feed (5 sec)", value=True)
 
 # Fetch Market Data
 live_feed, msg = fetch_dhan_live_data(dhan_client_id, dhan_access_token)
-if live_feed:
+if live_feed and live_feed["is_live"]:
     market = live_feed
     st.sidebar.success("🟢 Connected to Dhan HQ")
 else:
-    market = get_simulation_data()
+    market = live_feed if live_feed else get_simulation_data()
     if dhan_client_id or dhan_access_token:
-        st.sidebar.error(f"❌ {msg}")
+        st.sidebar.warning(f"⚠️ {msg}")
 
 # =====================================================================
 # 5. MAIN HEADER & STATUS BAR
@@ -161,7 +174,7 @@ st.title("⚡ NIFTY Order Flow & AI Engine")
 if market["is_live"]:
     st.success("🟢 Connected to Dhan HQ Live Feed API")
 else:
-    st.info("🟡 Running in Simulation/Manual Mode (Enter valid Client ID & Access Token in Sidebar)")
+    st.info("🟡 Running in Simulation Mode (Market Feed Syncing / Enter Credentials)")
 
 # Top Metric Bar
 col1, col2, col3, col4 = st.columns(4)
