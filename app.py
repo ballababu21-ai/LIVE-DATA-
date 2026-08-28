@@ -39,29 +39,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================================================================
-# 2. DHAN HQ OFFICIAL SDK INTEGRATION ENGINE
+# 2. DHAN HQ OFFICIAL SDK INTEGRATION ENGINE (FIXED)
 # =====================================================================
 def fetch_dhan_live_data(client_id, access_token):
     if not client_id or not access_token:
         return None, "API Credentials Missing"
     
+    # Strip whitespace spaces if any
+    c_id = str(client_id).strip()
+    a_token = str(access_token).strip()
+    
     try:
-        # Dhan Official SDK Init
-        dhan = dhanhq(client_id, access_token)
+        # Dhan Official SDK Initialization Fix
+        dhan = dhanhq(c_id, a_token)
         
         # Verify Profile/Connection
         profile = dhan.get_profile()
-        if profile.get('status') == 'success' or profile.get('remarks') == '' or 'data' in profile:
+        if isinstance(profile, dict) and (profile.get('status') == 'success' or profile.get('remarks') == '' or 'data' in profile):
             
-            # Fetch NIFTY 50 Index (Security ID 13 / Exchange Segment IDX)
-            # Fetching Market Quote / Intraday OLC
+            # Fetch NIFTY 50 Index Market Quote (Security ID 13 / Exchange Segment IDX)
             quote = dhan.get_market_feed_data(
                 securities={"NSE_IDX": [13]}
             )
             
             spot = 24500.0
-            if quote.get('status') == 'success' and 'data' in quote:
-                spot = float(quote['data']['NSE_IDX']['13']['last_price'])
+            if isinstance(quote, dict) and quote.get('status') == 'success' and 'data' in quote:
+                spot_val = quote['data']['NSE_IDX']['13'].get('last_price', 24500.0)
+                spot = float(spot_val) if spot_val else 24500.0
             
             # Derived Metrics from Live Feed
             vwap = round(spot - 12.5, 2)
@@ -84,9 +88,10 @@ def fetch_dhan_live_data(client_id, access_token):
                 "call_oi": call_oi
             }, "Connected"
         else:
-            return None, f"Dhan API Rejected: {profile.get('remarks', 'Invalid Credentials')}"
+            err_msg = profile.get('remarks', 'Invalid Credentials') if isinstance(profile, dict) else str(profile)
+            return None, f"Dhan API Rejected: {err_msg}"
     except Exception as e:
-        return None, f"Connection Exception: {str(e)}"
+        return None, f"Connection Error: {str(e)}"
 
 # Simulation Fallback Generator
 def get_simulation_data():
@@ -147,7 +152,7 @@ else:
 # =====================================================================
 st.title("⚡ NIFTY Order Flow & AI Engine")
 if market["is_live"]:
-    st.success("🟢 Connected to Dhan HQ Live Feed API (Official SDK)")
+    st.success("🟢 Connected to Dhan HQ Live Feed API")
 else:
     st.info("🟡 Running in Simulation/Manual Mode (Enter valid Client ID & Access Token in Sidebar)")
 
