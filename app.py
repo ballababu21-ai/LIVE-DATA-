@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.neural_network import MLPClassifier
 import plotly.graph_objects as go
-from datetime import datetime, time
+from datetime import datetime
 import requests
 
 # =====================================================================
@@ -50,7 +50,7 @@ def send_telegram_alert(bot_token, chat_id, message):
             st.sidebar.error(f"Telegram Alert Error: {e}")
 
 # =====================================================================
-# 3. LIGHTWEIGHT MLP NEURAL NETWORK MODEL (NO TENSORFLOW NEEDED)
+# 3. LIGHTWEIGHT MLP NEURAL NETWORK MODEL
 # =====================================================================
 @st.cache_resource
 def build_and_train_nn():
@@ -67,10 +67,9 @@ def build_and_train_nn():
 ai_model = build_and_train_nn()
 
 # =====================================================================
-# 4. STRATEGY ENGINE & SAFETY FILTERS
+# 4. STRATEGY ENGINE & SAFETY FILTERS (TIME FILTER REMOVED)
 # =====================================================================
 def evaluate_strategy_and_filters(spot, vwap, ema9, ema21, cvd, rsi, htf_trend, call_oi, iv_val, ai_cutoff):
-    current_time = datetime.now().time()
     reasons = []
 
     # 1. Rule-Based Signal
@@ -89,30 +88,23 @@ def evaluate_strategy_and_filters(spot, vwap, ema9, ema21, cvd, rsi, htf_trend, 
     otm_strike = atm + step if rule_signal == "BUY_CALL" else atm - step
     opt_type = "CE" if rule_signal == "BUY_CALL" else "PE"
 
-    # 3. Time Window Safeguard Filter
-    morning_slot = time(9, 30) <= current_time <= time(11, 15)
-    afternoon_slot = time(13, 45) <= current_time <= time(15, 0)
-    time_approved = morning_slot or afternoon_slot
-    if not time_approved:
-        reasons.append("Outside Safe Trading Hours (9:30-11:15, 13:45-15:00)")
-
-    # 4. Multi-Timeframe Trend
+    # 3. Multi-Timeframe Trend
     htf_approved = (rule_signal == "BUY_CALL" and htf_trend == "BULLISH") or \
                    (rule_signal == "BUY_PUT" and htf_trend == "BEARISH")
     if not htf_approved:
         reasons.append("15-Min Higher Timeframe Trend Mismatch")
 
-    # 5. OI Resistance Check
+    # 4. OI Resistance Check
     oi_approved = (rule_signal == "BUY_CALL" and spot < (call_oi - 25)) or (rule_signal == "BUY_PUT")
     if not oi_approved:
         reasons.append("Too Close to Heavy Call OI Resistance Wall")
 
-    # 6. IV Decay Risk Check
+    # 5. IV Decay Risk Check
     iv_approved = (iv_val >= 11.5)
     if not iv_approved:
         reasons.append("Low IV Decay Danger (Avoid Option Buying)")
 
-    # 7. AI Neural Network Confidence
+    # 6. AI Neural Network Confidence
     ema_diff = (ema9 - ema21) / spot
     vwap_diff = (spot - vwap) / spot
     cvd_norm = cvd / 5000.0
@@ -125,8 +117,8 @@ def evaluate_strategy_and_filters(spot, vwap, ema9, ema21, cvd, rsi, htf_trend, 
     if ai_confidence < ai_cutoff:
         reasons.append(f"AI Confidence Score Low ({ai_confidence}% < {ai_cutoff}%)")
 
-    # Decision
-    if time_approved and htf_approved and oi_approved and iv_approved and (ai_confidence >= ai_cutoff):
+    # Decision (Time Check Removed)
+    if htf_approved and oi_approved and iv_approved and (ai_confidence >= ai_cutoff):
         return "EXECUTE_TRADE", ai_confidence, otm_strike, opt_type, ["All Rules & AI Filters Passed"]
     else:
         return "REJECTED_BY_AI", ai_confidence, otm_strike, opt_type, reasons
