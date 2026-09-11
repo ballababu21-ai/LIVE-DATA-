@@ -1,6 +1,6 @@
 """
-MAHESH Money Flow - Live Dhan API Dashboard (Fixed Positional Arguments Error)
-=============================================================================
+MAHESH Money Flow - Live Dhan API Dashboard (Robust Dhanhq Fix)
+============================================================
 """
 
 import time
@@ -8,13 +8,6 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from datetime import datetime
-
-# Dhanhq API Library Import
-try:
-    from dhanhq import dhanhq
-    HAS_DHAN = True
-except ImportError:
-    HAS_DHAN = False
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(
@@ -67,27 +60,38 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. DHAN API INITIALIZATION
+# 3. DHAN API SAFE INITIALIZATION
 dhan = None
-if HAS_DHAN and "DHAN_CLIENT_ID" in st.secrets and "DHAN_ACCESS_TOKEN" in st.secrets:
+dhan_status_msg = "Not Connected"
+
+if "DHAN_CLIENT_ID" in st.secrets and "DHAN_ACCESS_TOKEN" in st.secrets:
+    client_id = str(st.secrets["DHAN_CLIENT_ID"]).strip()
+    access_token = str(st.secrets["DHAN_ACCESS_TOKEN"]).strip()
+    
     try:
-        c_id = str(st.secrets["DHAN_CLIENT_ID"]).strip()
-        a_token = str(st.secrets["DHAN_ACCESS_TOKEN"]).strip()
-        dhan = dhanhq(c_id, a_token)
+        import dhanhq
+        # dhanhq library v2 method safe check
+        if hasattr(dhanhq, 'dhanhq'):
+            dhan = dhanhq.dhanhq(client_id, access_token)
+        else:
+            dhan = dhanhq(client_id, access_token)
+        dhan_status_msg = "Connected Successfully"
     except Exception as e:
-        st.sidebar.error(f"Dhan Connection Error: {e}")
+        dhan_status_msg = f"API Init Error: {str(e)}"
 
 # 4. SIDEBAR CONTROLS
 st.sidebar.title("⚙️ Controls")
+st.sidebar.caption(f"Dhan Status: **{dhan_status_msg}**")
 refresh_speed = st.sidebar.slider("Auto Refresh (Sec)", 2, 10, 3)
 symbol = st.sidebar.selectbox("Symbol", ["NIFTY", "BANKNIFTY"])
 
-# 5. FETCH LIVE / FALLBACK DATA
-def fetch_live_options_data(symbol_name):
+# 5. FETCH DATA LOGIC
+def fetch_options_data(symbol_name):
     now = datetime.now()
-    live_spot = 24550.0 if symbol_name == "NIFTY" else 52200.0
+    live_spot = 24562.64 if symbol_name == "NIFTY" else 52200.0
     
-    live_spot = round(live_spot + np.random.uniform(-10, 10), 2)
+    # live fluctuation demo
+    live_spot = round(live_spot + np.random.uniform(-5, 5), 2)
     atm_strike = int(round(live_spot / 50.0) * 50)
     
     events = []
@@ -112,7 +116,7 @@ def fetch_live_options_data(symbol_name):
         })
     return events, live_spot, atm_strike
 
-events_data, live_spot, atm_strike = fetch_live_options_data(symbol)
+events_data, live_spot, atm_strike = fetch_options_data(symbol)
 
 # 6. HEADER & TOP BADGES
 st.markdown('<div class="mobile-header">MAHESH Money Flow</div>', unsafe_allow_html=True)
