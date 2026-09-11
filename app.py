@@ -1,10 +1,6 @@
 """
-MAHESH Money Flow - Mobile Responsive Dashboard
-================================================
-Mobile-Optimized Streamlit Live Options Dashboard.
-
-How to Run:
-    streamlit run app.py
+MAHESH Money Flow - Mobile Responsive Dashboard (Fixed Table Bug)
+=================================================================
 """
 
 import time
@@ -23,13 +19,10 @@ st.set_page_config(
 # 2. MOBILE SPECIFIC CSS STYLING
 st.markdown("""
     <style>
-        /* Mobile Screen Adjustments */
         .stApp {
             background-color: #f8fafc;
             padding: 2px;
         }
-        
-        /* Compact Header for Mobile */
         .mobile-header {
             font-size: 18px;
             font-weight: bold;
@@ -37,8 +30,6 @@ st.markdown("""
             margin-bottom: 8px;
             text-align: center;
         }
-
-        /* Responsive Navigation Menu */
         .mobile-nav-container {
             display: flex;
             overflow-x: auto;
@@ -62,8 +53,6 @@ st.markdown("""
             color: #ffffff;
             border-color: #2563eb;
         }
-
-        /* Mobile Cards for Live Badges */
         .status-card {
             background-color: #fee2e2;
             color: #dc2626;
@@ -75,17 +64,17 @@ st.markdown("""
             text-align: center;
             margin-bottom: 6px;
         }
-
-        /* Horizontally Scrollable Responsive Table */
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background-color: #ffffff;
+            margin-top: 10px;
         }
         .defense-table {
             width: 100%;
-            min-width: 650px; /* Minimum width to maintain clarity on mobile */
+            min-width: 650px;
             border-collapse: collapse;
             font-size: 12px;
             background-color: #ffffff;
@@ -103,9 +92,8 @@ st.markdown("""
             padding: 8px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: top;
+            color: #0f172a;
         }
-
-        /* Badges & Indicators */
         .state-bull { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .state-bear { background-color: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .badge-watch { background-color: #fef3c7; color: #b45309; padding: 2px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; }
@@ -160,7 +148,6 @@ events_data, live_spot, atm_strike = fetch_mobile_live_events(symbol)
 # 5. DASHBOARD HEADER & SCROLLABLE MENU
 st.markdown('<div class="mobile-header">MAHESH Money Flow</div>', unsafe_allow_html=True)
 
-# Mobile Horizontally Scrollable Menu
 st.markdown("""
     <div class="mobile-nav-container">
         <div class="mobile-nav-tab">Market Pulse</div>
@@ -174,57 +161,25 @@ st.markdown("""
 # Compact Status Bar
 m_col1, m_col2 = st.columns(2)
 with m_col1:
-    st.markdown(f'<div class="status-card">Nifty -0.68%</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-card">Nifty -0.68%</div>', unsafe_allow_html=True)
 with m_col2:
     st.markdown(f'<div class="status-card">ATM: {atm_strike}</div>', unsafe_allow_html=True)
 
 st.markdown(f"**{symbol} ATM±6 Defense (Live Flow)**")
 
-# 6. MOBILE RESPONSIVE TABLE RENDER
-table_html = """
-<div class="table-wrapper">
-    <table class="defense-table">
-        <thead>
-            <tr>
-                <th>TIME</th>
-                <th>SIDE</th>
-                <th>STATE</th>
-                <th>WALL / OI</th>
-                <th>NEUTRALIZED CONTROL</th>
-                <th>SELLER NEUTRALIZATION</th>
-                <th>UNWINDING</th>
-                <th>DIRECTIONAL</th>
-            </tr>
-        </thead>
-        <tbody>
-"""
-
+# 6. FIXED CLEAN TABLE HTML RENDER
+rows_html = ""
 for ev in events_data:
     side_class = "state-bear" if ev["side"] == "BEAR" else "state-bull"
     state_badge = "badge-confirmed" if "CONFIRMED" in ev["state"] else "badge-watch"
     val_class = "negative" if ev["neutralized_val"].startswith("-") else "positive"
     
-    table_html += f"""
-        <tr>
-            <td><b>{ev['time']}</b><br><span class="sub-text">{ev['spot']}</span></td>
-            <td><span class="{side_class}">{ev['side']}</span></td>
-            <td><span class="{state_badge}">{ev['state']}</span></td>
-            <td><b>{ev['wall_strike']}</b><br><span class="sub-text">{ev['wall_oi']}</span></td>
-            <td><span class="{val_class}">{ev['neutralized_val']}</span><br><span class="sub-text">{ev['neutralized_sub']}</span></td>
-            <td><span class="positive">{ev['seller_val']}</span><br><span class="sub-text">{ev['seller_sub']}</span></td>
-            <td><span class="positive">{ev['unwind_val']}</span><br><span class="sub-text">{ev['unwind_sub']}</span></td>
-            <td><b>{ev['dir_fresh_val']}</b><br><span class="sub-text">{ev['dir_fresh_sub']}</span></td>
-        </tr>
-    """
+    rows_html += f"<tr><td><b>{ev['time']}</b><br><span class='sub-text'>{ev['spot']}</span></td><td><span class='{side_class}'>{ev['side']}</span></td><td><span class='{state_badge}'>{ev['state']}</span></td><td><b>{ev['wall_strike']}</b><br><span class='sub-text'>{ev['wall_oi']}</span></td><td><span class='{val_class}'>{ev['neutralized_val']}</span><br><span class='sub-text'>{ev['neutralized_sub']}</span></td><td><span class='positive'>{ev['seller_val']}</span><br><span class='sub-text'>{ev['seller_sub']}</span></td><td><span class='positive'>{ev['unwind_val']}</span><br><span class='sub-text'>{ev['unwind_sub']}</span></td><td><b>{ev['dir_fresh_val']}</b><br><span class='sub-text'>{ev['dir_fresh_sub']}</span></td></tr>"
 
-table_html += """
-        </tbody>
-    </table>
-</div>
-"""
+full_table_html = f"""<div class="table-wrapper"><table class="defense-table"><thead><tr><th>TIME</th><th>SIDE</th><th>STATE</th><th>WALL / OI</th><th>NEUTRALIZED CONTROL</th><th>SELLER NEUTRALIZATION</th><th>UNWINDING</th><th>DIRECTIONAL</th></tr></thead><tbody>{rows_html}</tbody></table></div>"""
 
-st.markdown(table_html, unsafe_allow_html=True)
+st.markdown(full_table_html, unsafe_allow_html=True)
 
-# Auto Refresh Loop for Mobile Continuous Stream
+# Auto Refresh Loop
 time.sleep(refresh_speed)
 st.rerun()
