@@ -1,7 +1,6 @@
 """
-MAHESH Money Flow - Interactive Mobile Dashboard
-=================================================
-Fully Functional Tabs for Mobile Navigation.
+MAHESH Money Flow - Mobile Dashboard (Fixed Default Tab)
+======================================================
 """
 
 import time
@@ -17,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. CUSTOM CSS FOR MOBILE APPS
+# 2. CUSTOM CSS STYLING
 st.markdown("""
     <style>
         .stApp { background-color: #f8fafc; padding: 2px; }
@@ -36,7 +35,7 @@ st.markdown("""
             background-color: #ffffff; margin-top: 10px;
         }
         .defense-table {
-            width: 100%; min-width: 600px; border-collapse: collapse;
+            width: 100%; min-width: 650px; border-collapse: collapse;
             font-size: 12px; background-color: #ffffff;
         }
         .defense-table th {
@@ -54,19 +53,10 @@ st.markdown("""
         .positive { color: #16a34a; font-weight: 600; }
         .negative { color: #dc2626; font-weight: 600; }
 
-        /* Streamlit Tabs Styling for Mobile Horizontal Scroll */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 4px;
+        /* Segmented control navigation styling */
+        div[data-baseweb="segmented-control"] {
+            width: 100%;
             overflow-x: auto;
-            white-space: nowrap;
-        }
-        .stTabs [data-baseweb="tab"] {
-            height: 35px;
-            padding: 4px 10px;
-            background-color: #ffffff;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -116,14 +106,12 @@ with m_col1:
 with m_col2:
     st.markdown(f'<div class="status-card">ATM: {atm_strike}</div>', unsafe_allow_html=True)
 
-# 6. INTERACTIVE TABS (WORKING NAV)
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Market Pulse", 
-    "Drilldown", 
-    "Options Lab", 
-    "Nifty ATM±6", 
-    "Rolling ATM"
-])
+# 6. WORKING NAVIGATION (Default set to Nifty ATM±6)
+selected_tab = st.segmented_control(
+    "",
+    ["Market Pulse", "Drilldown", "Options Lab", "Nifty ATM±6", "Rolling ATM"],
+    default="Nifty ATM±6"
+)
 
 # Helper function to render table
 def render_table(data):
@@ -136,33 +124,29 @@ def render_table(data):
     
     return f'<div class="table-wrapper"><table class="defense-table"><thead><tr><th>TIME</th><th>SIDE</th><th>STATE</th><th>WALL / OI</th><th>NEUTRALIZED CONTROL</th><th>SELLER NEUTRALIZATION</th><th>UNWINDING</th><th>DIRECTIONAL</th></tr></thead><tbody>{rows_html}</tbody></table></div>'
 
-# TAB 1: MARKET PULSE
-with tab1:
+# SCREEN SWITCHING LOGIC
+if selected_tab == "Nifty ATM±6":
+    st.write(f"**{symbol} ATM±6 Defense (Live Flow)**")
+    st.markdown(render_table(events_data), unsafe_allow_html=True)
+
+elif selected_tab == "Market Pulse":
     st.write("### 📊 Market Pulse Overview")
     p_col1, p_col2 = st.columns(2)
     p_col1.metric("PCR Index", "0.92", "+0.05")
     p_col2.metric("Max Pain Strike", f"{atm_strike}")
     st.info("Market Pulse summary: Bullish pressure build-up near ATM.")
 
-# TAB 2: DRILLDOWN
-with tab2:
+elif selected_tab == "Drilldown":
     st.write("### 🔍 Strike Drilldown")
     selected_strike = st.selectbox("Select Strike", [atm_strike-100, atm_strike-50, atm_strike, atm_strike+50, atm_strike+100])
     st.json({"Strike": selected_strike, "CE_OI": "2.4 Cr", "PE_OI": "3.1 Cr", "Net_Flow": "Bullish"})
 
-# TAB 3: OPTIONS LAB
-with tab3:
+elif selected_tab == "Options Lab":
     st.write("### 🧪 Options Lab")
     st.caption("IV & Price Volatility Breakdown")
     st.progress(65, text="CE vs PE Selling Pressure Ratio (65% CE)")
 
-# TAB 4: NIFTY ATM±6 (DEFAULT TABLE VIEW)
-with tab4:
-    st.write(f"**{symbol} ATM±6 Defense (Live Flow)**")
-    st.markdown(render_table(events_data), unsafe_allow_html=True)
-
-# TAB 5: ROLLING ATM
-with tab5:
+elif selected_tab == "Rolling ATM":
     st.write("### 🔄 Rolling ATM Tracker")
     st.markdown(render_table(events_data[:3]), unsafe_allow_html=True)
 
