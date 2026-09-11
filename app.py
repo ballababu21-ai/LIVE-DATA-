@@ -1,6 +1,6 @@
 """
-MAHESH Money Flow - Live Dhan API Dashboard (Fixed Dhan Client Error)
-===================================================================
+MAHESH Money Flow - Live Dhan API Dashboard (Fixed Positional Arguments Error)
+=============================================================================
 """
 
 import time
@@ -67,15 +67,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. DHAN API INITIALIZATION (FIXED INITIALIZATION ARGUMENTS)
+# 3. DHAN API INITIALIZATION
 dhan = None
 if HAS_DHAN and "DHAN_CLIENT_ID" in st.secrets and "DHAN_ACCESS_TOKEN" in st.secrets:
     try:
-        # Dhanhq V2 API కరెక్ట్ ఇనిషియలైజేషన్: నేరుగా positional arguments పంపాలి
-        dhan = dhanhq(
-            str(st.secrets["DHAN_CLIENT_ID"]),
-            str(st.secrets["DHAN_ACCESS_TOKEN"])
-        )
+        c_id = str(st.secrets["DHAN_CLIENT_ID"]).strip()
+        a_token = str(st.secrets["DHAN_ACCESS_TOKEN"]).strip()
+        dhan = dhanhq(c_id, a_token)
     except Exception as e:
         st.sidebar.error(f"Dhan Connection Error: {e}")
 
@@ -89,7 +87,6 @@ def fetch_live_options_data(symbol_name):
     now = datetime.now()
     live_spot = 24550.0 if symbol_name == "NIFTY" else 52200.0
     
-    # లైవ్ కనెక్షన్ లేనప్పుడు / ఆఫ్ లైన్ టైమ్‌లో డెమో రన్
     live_spot = round(live_spot + np.random.uniform(-10, 10), 2)
     atm_strike = int(round(live_spot / 50.0) * 50)
     
